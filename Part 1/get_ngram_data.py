@@ -26,27 +26,27 @@ def get_data_file(file, all_years, target):
         yield (key, store[key])
 
 
-def yield_file(all_years, target):
+def yield_file(all_years, target, ignore):
     datastore = readline_google_store(ngram_len=1)
     for file in datastore:
         print file[0]
-        obj = get_data_file(file, all_years, target)
-        yield (file[0], obj)
+        if file[0] not in ignore:
+            obj = get_data_file(file, all_years, target)
+            yield (file[0], obj)
 
 
 # THIS TAKES A REALLY LONG TIME
 def write_ngrams(all_years, target, filename, ignore):
-    f = open(filename, 'w')
-    for file in yield_file(all_years, target):
-        if file[0] not in ignore:
-            for word in file[1]:
-                line = []
-                for year in word[1]:
-                    kv = ':'.join([str(year), str(word[1][year])])
-                    line.append(kv)
-                line = ",".join(line)
-                f.write('||'.join([word[0], line]))
-                f.write('\n')
+    for file in yield_file(all_years, target, ignore):
+        f = open(filename, 'a')
+        for word in file[1]:
+            line = []
+            for year in word[1]:
+                kv = ':'.join([str(year), str(word[1][year])])
+                line.append(kv)
+            line = ",".join(line)
+            f.write('||'.join([word[0], line]))
+            f.write('\n')
 
 
 def parse_ngram_file(filename):

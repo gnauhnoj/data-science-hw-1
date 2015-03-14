@@ -1,6 +1,7 @@
 import unicodedata
 import string
 import codecs
+import random
 
 
 def clean_unicode(instr):
@@ -12,7 +13,13 @@ def clean_ngram(instr):
     instr = clean_unicode(instr)
     # return instr.lower().split('_')[0]
     instr = clean_str(instr, True)
-    return instr.split()[0]
+    instr = instr.split()
+    try:
+        instr[0]
+    except:
+        pass
+    else:
+        return instr[0]
 
 
 def clean_str(instr, punc_to_whitespace=False):
