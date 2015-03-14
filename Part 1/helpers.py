@@ -10,8 +10,9 @@ def clean_unicode(instr):
 def clean_ngram(instr):
     # look into another way of doing this
     instr = clean_unicode(instr)
-    # return instr.lower()
-    return instr.lower().split('_')[0]
+    # return instr.lower().split('_')[0]
+    instr = clean_str(instr, True)
+    return instr.split()[0]
 
 
 def clean_str(instr, punc_to_whitespace=False):
@@ -20,7 +21,7 @@ def clean_str(instr, punc_to_whitespace=False):
     """
     if punc_to_whitespace:
         table = string.maketrans(string.punctuation,
-                                ' '*len(string.punctuation))
+                                 ' '*len(string.punctuation))
         return instr.lower().translate(table)
     return instr.lower().translate(None, string.punctuation)
 
@@ -57,3 +58,11 @@ def get_years(filename):
             else:
                 years[date].append(event_name)
     return years
+
+
+def build_map(setify):
+    word_map = {}
+    listify = list(setify)
+    for word in setify:
+        word_map[word] = listify.index(word)
+    return word_map
