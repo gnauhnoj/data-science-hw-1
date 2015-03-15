@@ -5,10 +5,17 @@ import random
 
 
 def clean_unicode(instr):
+    """
+    Helper to return unicode string as ascii with special characters removed.
+    """
     return unicodedata.normalize('NFKD', instr).encode('ascii', 'ignore')
 
 
 def clean_ngram(instr):
+    """
+    Helper to clean ngram unicode strings with punctuation, capital letters, and special
+    characters removed.
+    """
     # look into another way of doing this
     instr = clean_unicode(instr)
     # return instr.lower().split('_')[0]
@@ -34,6 +41,10 @@ def clean_str(instr, punc_to_whitespace=False):
 
 
 def get_words(filename):
+    """
+    Helper to extrct a set of words from the provided filename.
+    Assumes each word is the first consecutive group of characters in each line
+    """
     words = set([])
     for line in open(filename, 'r'):
         line = clean_str(line, True)  # assumes each line is one word
@@ -43,6 +54,10 @@ def get_words(filename):
 
 
 def get_years(filename):
+    """
+    Retrieve a range of years from the provided text file
+    Assumes text copied directly from wikipedia in the format: Date1-Date2 (optional) Name of Event
+    """
     years = {}
     for line in codecs.open(filename, 'r', 'utf-8'):
         line = clean_unicode(line)
@@ -68,6 +83,9 @@ def get_years(filename):
 
 
 def build_map(setify):
+    """
+    Creates a dictionary that represents the order of a passed set.
+    """
     word_map = {}
     listify = list(setify)
     for word in setify:

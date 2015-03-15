@@ -1,9 +1,9 @@
-from google_ngram_downloader import readline_google_store
 from get_ngram_data import parse_ngram_file, transform_to_year
 from helpers import get_words, get_years, build_map
 import matplotlib.pyplot as plt
 import numpy as np
 import os.path
+import random
 from math import floor
 from sklearn.preprocessing import StandardScaler
 from sklearn import linear_model, svm, neighbors, qda, metrics, cross_validation
@@ -11,6 +11,10 @@ from sklearn.pipeline import Pipeline
 
 
 def build_outcome(all_things, positive):
+    """
+    Build an outcome vector given a whole set of years and a set of years that represent the positive cross_val_score
+    Output format [(year, 1 OR 0)]
+    """
     y_vec = []
     for year in all_things:
         if year in positive:
@@ -22,6 +26,9 @@ def build_outcome(all_things, positive):
 
 
 def reservoir_sample(input, N):
+    """
+    Reservoir sampling given an iterable input and N for number of items to be sampled
+    """
     sample = []
     for i, line in enumerate(input, start=1):
         if i <= N:
@@ -32,31 +39,11 @@ def reservoir_sample(input, N):
     return sample
 
 
-def plot_words(word_results):
-    for word in word_results:
-        x, y = zip(*word_results[word])
-        y = standardize_counts(y)
-        plt.plot(x, y)
-    plt.show()
-    plt.close()
-# need to add labels... somehow
-# plt.tick_params(
-#     axis='both',          # changes apply to the x-axis
-#     which='both',      # both major and minor ticks are affected
-#     bottom='off',      # ticks along the bottom edge are off
-#     top='off',         # ticks along the top edge are off
-#     left='off',
-#     right='off',
-#     labelbottom='off',
-#     labelleft='off')   # labels along the bottom edge are off
-# plt.ylabel('P(TP) - True Positive Rate')
-# plt.xlabel('P(FP) - False Positive Rate')
-# plt.title('Problem 2a-2d: ROC Curve Predictions')
-# plt.legend(scatterpoints=1, loc='lower center')
-# plt.savefig('Random.png', dpi=100)
-
-
 def balance_pool(pool):
+    """
+    Given a pool of year-key formatted unbalanced outcome data, return a balanced set where positive outcomes have equal number of occurances to negative outcomes
+    The larger set is randomly sampled to reduce its size by using reservoir_sample
+    """
     newpool = {}
     neg = []
     pos = []
@@ -73,9 +60,29 @@ def balance_pool(pool):
     return newpool
 
 
+def plot_words(word_results):
+    """
+    Given a pool of word-key format data, plot the number of occurances for all of the words in the word_result dictionary
+    """
+    for word in word_results:
+        x, y = zip(*word_results[word])
+        plt.plot(x, y)
+    # need to add labels... somehow
+    plt.ylabel('1 Gram Frequency (number of occurances)')
+    plt.xlabel('Year (1800 - 2000)')
+    plt.title('Part 1: Selected 1 Gram Frequencies')
+    plt.savefig('Words.png', dpi=100)
+    plt.show()
+    plt.close()
+
+
 def create_data_pool(outcome_vec, word_map, year_data):
-    # for each year in outcome_vec
-    # generate a vector of length len(words)
+    """
+    Create a data pool from an outcome vector, ordered word map ({word: relative index}), year-key data
+    Finds year matches between outcome vector and year-key data, builds a data pool for each year
+    Each entry in the datapool is: {year: [...ordered vector of word counts..., outcome value]}
+    The output corresponds to each point in our final dataset
+    """
     pool = {}
     for tup in outcome_vec:
         year, outcome = tup
@@ -88,6 +95,11 @@ def create_data_pool(outcome_vec, word_map, year_data):
 
 
 def create_train_test(pool, trainfile, testfile):
+    """
+    Split the data pool created in create_data_pool randomly into a 80/20 split between training data and testing data
+    Shuffles all the years and randomly splits 80/20 between training and test
+    Should only be ran once to randomly split train/test data as it will return different results between runs
+    """
     points = pool.values()
     random.shuffle(points)
     ftrain = open(trainfile, 'w')
@@ -104,6 +116,10 @@ def create_train_test(pool, trainfile, testfile):
 
 
 def parse_train_test(filename):
+    """
+    Parses the train/test files created by create_train_test
+    Returns the data in a generator form
+    """
     for line in open(filename, 'r'):
         fields = line.split("||")
         try:
@@ -113,6 +129,9 @@ def parse_train_test(filename):
 
 
 def BuildXY(filename):
+    """
+    Creates X and Y vectors from test/train files
+    """
     x, y = [], []
     listify = list(parse_train_test(filename))
     for year in listify:
@@ -122,28 +141,38 @@ def BuildXY(filename):
 
 
 if __name__ == '__main__':
+    # if train and test don't exist, create a data pool (in this case ignoring data from 1700 - 1800)
+    # write train and test files
+    # assumes data.csv exists
     if not os.path.isfile('train.txt') or not os.path.isfile('test.txt'):
-        word_results = parse_ngram_file('data.csv')
+        remove = [1700 + i for i in xrange(0, 100)]
+        word_results = parse_ngram_file('data.csv', remove)
         target_words = get_words('words.csv').intersection(word_results.keys())
         year_data = transform_to_year(word_results)
         positive_years = get_years('wars.csv')
         outcome_vec = build_outcome(year_data.keys(), positive_years)
         word_map = build_map(target_words)
         pool = create_data_pool(outcome_vec, word_map, year_data)
-        pool = balance_pool(pool)
+        # balance the pool not used in the final version -- reasons discussed in report
+        # pool = balance_pool(pool)
         create_train_test(pool, 'train.txt', 'test.txt')
+        plot_words(word_results)
+    # read train/test files
     train = BuildXY('train.txt')
-    clf = Pipeline([('Scaler', StandardScaler()),
-                    ('Log-Reg', linear_model.LogisticRegression(penalty='l2', dual=True))])
-                    # ('kNN', neighbors.KNeighborsClassifier())])
-                    # ('SVC-linear', svm.SVC(kernel='linear', C=1))])
-                    # ('SVC-rbf', svm.SVC(kernel='rbf'))])
-    cv = cross_validation.KFold(len(train[0]), n_folds=5, shuffle=True)
-    scores = cross_validation.cross_val_score(clf, train[0], train[1], cv=cv)
-    print np.average(scores)
     test = BuildXY('test.txt')
+    # builds a sklearn pipeline of different classifiers (manually modified to choose best one)
+    clf = Pipeline([('Scaler', StandardScaler()),
+                    # ('Log-Reg', linear_model.LogisticRegression(penalty='l2', dual=True))])
+                    # ('Log-Reg', linear_model.LogisticRegression(penalty='l2', dual=False))])
+                    # ('kNN', neighbors.KNeighborsClassifier())]) # default k is 5
+                    # ('kNN', neighbors.KNeighborsClassifier(n_neighbors=3))]) # default k is 5
+                    ('SVC-linear', svm.SVC(kernel='linear'))])
+                    # ('SVC-rbf', svm.SVC(kernel='rbf'))])
+    # performs kfold cross validation on our selected model, n_folds = 4 (so each validation set is 20% of data, shuffle prior to performing folds to ensure a random validation set (since consecutive years can have same result)
+    cv = cross_validation.KFold(len(train[0]), n_folds=4, shuffle=True)
+    scores = cross_validation.cross_val_score(clf, train[0], train[1], cv=cv)
+    print scores, np.average(scores)
+    # peforms test on selected model
     clf = clf.fit(train[0], train[1])
     predicted = clf.predict(test[0])
     print metrics.accuracy_score(test[1], predicted)
-    print metrics.confusion_matrix(test[1], predicted)
-    print metrics.classification_report(test[1], predicted)
